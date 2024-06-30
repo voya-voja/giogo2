@@ -1,0 +1,33 @@
+srcDir=$1
+shift
+echo "***** Source Dir: $srcDir"
+
+destDir=$1
+shift
+echo "***** Destination Dir: $destDir"
+
+classPath=$1
+shift
+echo "***** Class Path: $classPath"
+
+jarFile=$1
+echo "***** JAR file: $jarFile"
+
+rm /tmp/rmi.file.list 2>/dev/null
+buildPath=$PWD
+cd $destDir
+for arg; do
+	shift
+	classDir=$1
+echo "***** Class Dir: $classDir"
+	if [ -z $classDir ]; then break; fi;
+	cd $classDir
+	$MAC/makeinclude/rmic_subdir $classDir $srcDir $jarFile
+	cd ..
+done
+cd $buildPath
+if [ -a /tmp/rmi.file.list ]; then
+	rmi_file_list="`cat /tmp/rmi.file.list`"
+	echo "rmic -d $destDir -classpath $classPath $rmi_file_list"
+	rmic -d $destDir -classpath  $classPath $rmi_file_list
+fi

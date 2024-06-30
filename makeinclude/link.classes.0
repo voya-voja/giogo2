@@ -1,0 +1,25 @@
+# Creates .java links in the same directory where is .class file
+
+dirPath=$1
+LINK_CLASSES=$MAC/makeinclude/link.classes
+srcTreeDir=$MAC
+
+# Recursive execution through directory tree
+list=`ls`
+for name in $list; do
+	if [ $name -a -d $name ]; then
+		nextDir=$dirPath$name/ # <dir>/<subdir>/
+		cd $name
+		$LINK_CLASSES $nextDir
+		cd ..
+	fi
+done
+
+# Link .java files
+fileList=`ls *.class 2>/dev/null`
+for file in $fileList; do
+	jfileName=`echo $file | sed s/\.class/\.java/`
+	if [ ! -a $jfileName ]; then
+		ln -s $srcTreeDir/$dirPath$jfileName $jfileName
+	fi
+done

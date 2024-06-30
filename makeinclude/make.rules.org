@@ -1,0 +1,177 @@
+SHELL = /bin/ksh
+
+top_srcdir = ..
+srcdir     = .
+mkinclude	= $(MAC)/makeinclude
+bindir		= $(MAC)/bin
+libdir		= $(MAC)/lib
+includedir	= $(MAC)/include
+
+include $(mkinclude)/make.rules.sun
+
+CFLAGS		+=		# the C language compiler flags
+CPPFLAGS	+=		# the C language preprocessor flags
+
+CCFLAGS		+=		# the C++ Compiler flags
+
+JFLAGS		+= -d $(CLASSDIR) -classpath $(CLASSPATH):$(JSRCPATH)
+JCOMPILE	= javac $(JFLAGS)
+
+LD		= CC
+LIBS		+=
+LDFLAFS		+=
+LINK		= $(LD) $(LDFLAGS)
+
+JAR		= jar
+JARFLAGS	+=  cvf
+JLINK		= $(JAR) $(JARFLAGS)
+
+INSTALL		= $(MAC)/makeinclude/install-sh -c
+INSTALL_PROGRAM = ${INSTALL}
+RM 		= rm -f
+MAKE		= make
+
+# Conditional compiles
+
+.SUFFIXES:$(SUFFIXES) .cpp .cxx .properties _wrapper.cxx .idl _wrapper.I 
+
+.cpp:
+	$(LINK.cc) -o $@ $< $(LDLIBS)
+.cpp~:
+	$(GET) $(GFLAGS) -p $< > $*.cc
+	$(LINK.cc) -o $@ $*.cc $(LDLIBS)
+.cpp.o:
+	$(COMPILE.cc) $<
+.cpp~.o:
+	$(GET) $(GFLAGS) -p $< > $*.cc
+	$(COMPILE.cc) $(OUTPUT_OPTION) $*.cc
+.cpp.a:
+	$(COMPILE.cc) -o $% $<
+	$(AR) $(ARFLAGS) $@ $%
+	$(RM) $%
+.cpp~.a:
+	$(GET) $(GFLAGS) -p $< > $*.cc
+	$(COMPILE.cc) -o $% $*.cc
+	$(AR) $(ARFLAGS) $@ $%
+	$(RM) $%
+
+.cxx:
+	$(LINK.cc) -o $@ $< $(LDLIBS)
+.cxx~:
+	$(GET) $(GFLAGS) -p $< > $*.cc
+	$(LINK.cc) -o $@ $*.cc $(LDLIBS)
+.cxx.o:
+	$(COMPILE.cc) $<
+.cxx~.o:
+	$(GET) $(GFLAGS) -p $< > $*.cc
+	$(COMPILE.cc) $(OUTPUT_OPTION) $*.cc
+.cxx.a:
+	$(COMPILE.cc) -o $% $<
+	$(AR) $(ARFLAGS) $@ $%
+	$(RM) $%
+.cxx~.a:
+	$(GET) $(GFLAGS) -p $< > $*.cc
+	$(COMPILE.cc) -o $% $*.cc
+	$(AR) $(ARFLAGS) $@ $%
+	$(RM) $%
+
+
+.java.class:
+	@$(mkinclude)/mkinstalldirs $(CLASSDIR)
+	$(JCOMPILE) $<
+
+
+.properties.p:
+	@$(mkinclude)/mkinstalldirs $(CFG_PATH)
+	cp $< $@roperties 
+
+.idl_wrapper.cxx:
+	oidl $(OIDLFLAGS) $<
+	@target=`echo "$@" | sed s/\.cxx/\.I/`; \
+	$(INSTALL_PROGRAM) $$target $(includedir)/$$target
+
+# Dependencies for building
+all: all-recursive $(JLIB) $(SHLIB) $(BIN)
+
+cfg: $(JCFG)
+
+$(JLIB): $(CLASS) cfg
+	@find $(CLASSDIR) -name *.java -exec rm -f {} \;
+	@$(mkinclude)/rmi.compile $(MAC) $(CLASSPATH):$(JSRCPATH) \
+						$(PWD)/$(JLIB) $(CLASSDIR)
+	$(JLINK) $(JLIB) $(CLASSDIR)
+	@$(mkinclude)/link.classes
+	@find $(CLASSDIR) -name *.properties -exec rm -f {} \;
+
+$(BIN): $(OBJ) $(SHLIB)
+	$(LINK) $(LDFLAGS) $(OBJ) $(LIBS) $(SHLIB) -o $@
+
+$(SHLIB): $(LIBOBJ)
+	$(LINK) -G $(LDFLAGS) $(LIBOBJ) $(LIBS) -o $@
+
+#
+# Dependencies for installing
+#
+
+install: install-recursive install.shlib install.jlib install.bin
+
+uninstall: uninstall-recursive uninstall.bin uninstall.shlib uninstall.jlib
+
+install.bin: $(BIN)
+	@if [ $(BIN) ]; then \
+	$(mkinclude)/mkinstalldirs $(bindir); \
+	$(INSTALL_PROGRAM) $(BIN) $(bindir)/$(BIN); \
+	fi
+
+install.shlib: $(SHLIB)
+	@if [ $(SHLIB) ]; then \
+	$(mkinclude)/mkinstalldirs $(libdir); \
+	$(INSTALL_PROGRAM) $(SHLIB) $(libdir)/$(SHLIB); \
+	fi
+
+install.jlib: $(JLIB)
+	@if [ $(JLIB) ]; then \
+	$(mkinclude)/mkinstalldirs $(libdir); \
+	$(INSTALL_PROGRAM) $(JLIB) $(libdir)/$(JLIB); \
+	fi
+
+uninstall.bin:
+	@if [ $(BIN) ]; then \
+	$(RM) $(bindir)/$(BIN); \
+	fi
+
+uninstall.shlib:
+	@if [ $(SHLIB) ]; then \
+	$(RM) $(libdir)/$(SHLIB); \
+	fi
+
+uninstall.jlib:
+	@if [ $(JLIB) ]; then \
+	$(RM) $(libdir)/$(JLIB); \
+	fi
+
+#
+# Dependencies for cleanup
+#
+
+clean: clean-recursive remove-directory
+	$(RM) *.o $(BIN) $(SHLIB) *~ *.bak core $(ANSI2KNR) \
+		*._o *._c *.class $(JLIB) *_wrapper.I *_wrapper.h *_wrapper.cxx
+
+remove-directory:
+	if [ -n "$(RMDIRS)" ]; then rm -rf $(RMDIRS); fi
+
+#
+# Dependencies for maintenance
+#
+
+all-recursive clean-recursive \
+install-recursive uninstall-recursive: 
+	@target=`echo $@ | sed s/-recursive//`; \
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	echo "Making $$target in $$subdir"; \
+	cd $$subdir; \
+	$(MAKE) $(AM_MAKEFLAGS) $$target; \
+	cd ..; \
+	done;
+

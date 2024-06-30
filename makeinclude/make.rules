@@ -1,0 +1,237 @@
+SHELL = /bin/ksh
+
+top_srcdir = ..
+srcdir     = .
+mkinclude	= $(MAC)/makeinclude
+bindir		= $(MAC)/bin
+libdir		= $(MAC)/lib
+includedir	= $(MAC)/include
+
+include $(mkinclude)/make.rules.sun
+
+CFLAGS		+=		# the C language compiler flags
+CPPFLAGS	+=		# the C language preprocessor flags
+
+CCFLAGS		+=		# the C++ Compiler flags
+
+DESTPATH	= ./$(BUILDDIR)
+JFLAGS		+= -d $(DESTPATH) -classpath $(CLASSPATH):$(JSRCPATH)
+RMIFLAGS	+= -d $(DESTPATH) -classpath $(CLASSPATH):$(JSRCPATH)
+JCOMPILE	= javac $(JFLAGS)
+RMICOMPILE	= rmic $(RMIFLAGS)
+
+LD		= CC
+LIBS		+=
+LDFLAFS		+=
+LINK		= $(LD) $(LDFLAGS)
+
+JAR		= jar
+JARFLAGS	+=  cvf
+JLINK		= $(JAR) $(JARFLAGS)
+
+INSTALL		= $(MAC)/makeinclude/install-sh -c
+INSTALL_PROGRAM = ${INSTALL}
+RM 		= rm -f
+MAKE		= make
+
+# Conditional compiles
+
+.SUFFIXES:$(SUFFIXES) .cpp .cxx _wrapper.cxx .idl _wrapper.I _Stub.class _Skel.class .rmi .xml .xml_ .jar .jar_ .jsp .jsp_ .gif .gif_ .jpg .jpg_
+
+.cpp:
+	$(LINK.cc) -o $@ $< $(LDLIBS)
+.cpp~:
+	$(GET) $(GFLAGS) -p $< > $*.cc
+	$(LINK.cc) -o $@ $*.cc $(LDLIBS)
+.cpp.o:
+	$(COMPILE.cc) $<
+.cpp~.o:
+	$(GET) $(GFLAGS) -p $< > $*.cc
+	$(COMPILE.cc) $(OUTPUT_OPTION) $*.cc
+.cpp.a:
+	$(COMPILE.cc) -o $% $<
+	$(AR) $(ARFLAGS) $@ $%
+	$(RM) $%
+.cpp~.a:
+	$(GET) $(GFLAGS) -p $< > $*.cc
+	$(COMPILE.cc) -o $% $*.cc
+	$(AR) $(ARFLAGS) $@ $%
+	$(RM) $%
+
+.cxx:
+	$(LINK.cc) -o $@ $< $(LDLIBS)
+.cxx~:
+	$(GET) $(GFLAGS) -p $< > $*.cc
+	$(LINK.cc) -o $@ $*.cc $(LDLIBS)
+.cxx.o:
+	$(COMPILE.cc) $<
+.cxx~.o:
+	$(GET) $(GFLAGS) -p $< > $*.cc
+	$(COMPILE.cc) $(OUTPUT_OPTION) $*.cc
+.cxx.a:
+	$(COMPILE.cc) -o $% $<
+	$(AR) $(ARFLAGS) $@ $%
+	$(RM) $%
+.cxx~.a:
+	$(GET) $(GFLAGS) -p $< > $*.cc
+	$(COMPILE.cc) -o $% $*.cc
+	$(AR) $(ARFLAGS) $@ $%
+	$(RM) $%
+
+.rmi_Stub.class:
+	@$(mkinclude)/mkinstalldirs $(DESTPATH)
+	@srcPath=`echo "$(JSRCPATH)"| sed s/'\/'/'\\\''\/'/g`; \
+	relativePath=`echo "$<"| sed s/$$srcPath//`; \
+	noExtenssion=`echo $$relativePath | sed "s/\.rmi//"`; \
+	javaClass=`echo "$$noExtenssion"| sed "s/\//\./g"`; \
+	javaClass=`echo "$$javaClass"| sed "s/\.//"`; \
+	echo $(RMICOMPILE) $$javaClass; \
+	$(RMICOMPILE) $$javaClass
+
+.rmi_Skel.class:
+	@$(mkinclude)/mkinstalldirs $(DESTPATH)
+	@srcPath=`echo "$(JSRCPATH)"| sed s/'\/'/'\\\''\/'/g`; \
+	relativePath=`echo "$<"| sed s/$$srcPath//`; \
+	noExtenssion=`echo $$relativePath | sed "s/\.rmi//"`; \
+	javaClass=`echo "$$noExtenssion"| sed "s/\//\./g"`; \
+	javaClass=`echo "$$javaClass"| sed "s/\.//"`; \
+	echo $(RMICOMPILE) $$javaClass; \
+	$(RMICOMPILE) $$javaClass
+
+.java.class:
+	@$(mkinclude)/mkinstalldirs $(DESTPATH)
+	$(JCOMPILE) $<
+
+.idl_wrapper.cxx:
+	oidl $(OIDLFLAGS) $<
+	@target=`echo "$@" | sed s/\.cxx/\.I/`; \
+	$(INSTALL_PROGRAM) $$target $(includedir)/$$target
+
+.xml.xml_:
+	@$(mkinclude)/mkinstalldirs $(DESTPATH)
+	cp $< $(CLASSDIR)
+
+.jsp.jsp_:
+	@$(mkinclude)/mkinstalldirs $(DESTPATH)
+	cp $< $(CLASSDIR)
+
+.gif.gif_:
+	@$(mkinclude)/mkinstalldirs $(DESTPATH)/images
+	cp $< $(CLASSDIR)/images
+
+.jpg.jpg_:
+	@$(mkinclude)/mkinstalldirs $(DESTPATH)/images
+	cp $< $(CLASSDIR)/images
+
+.jar.jar_:
+	@$(mkinclude)/mkinstalldirs $(CLASSDIR)/lib
+	cp $< $(CLASSDIR)/lib
+
+# Dependencies for building
+all: all-recursive $(JLIB) $(WLIB) $(SHLIB) $(BIN)
+
+jsign: $(JLIB)
+	jarsigner -keystore $(KEYSTORE) $(JLIB) $(JSIGN_KEY)
+	
+
+$(JLIB): $(CLASS)
+	@echo "Removing .java soft links ..."
+	@find $(DESTPATH) -name *.java -exec rm -f {} \;
+	$(JLINK) $(JLIB) $(CLASSDIR)
+	@echo "Recreating .java soft links ..."
+	@$(mkinclude)/link.classes
+	@find $(DESTPATH) -name *_Stub.java -exec rm -f {} \;
+	@find $(DESTPATH) -name *_Skel.java -exec rm -f {} \;
+
+$(WLIB): $(XML) $(JARS) $(CLASS)
+	@echo "Removing .java soft links ..."
+	@find $(DESTPATH) -name *.java -exec rm -f {} \;
+	$(JLINK) $(WLIB) $(CLASSDIR)
+	@echo "Recreating .java soft links ..."
+	@$(mkinclude)/link.classes
+	@find $(DESTPATH) -name *_Stub.java -exec rm -f {} \;
+	@find $(DESTPATH) -name *_Skel.java -exec rm -f {} \;
+
+$(BIN): $(OBJ) $(SHLIB)
+	$(LINK) $(LDFLAGS) $(OBJ) $(LIBS) $(SHLIB) -o $@
+
+$(SHLIB): $(LIBOBJ)
+	$(LINK) -G $(LDFLAGS) $(LIBOBJ) $(LIBS) -o $@
+
+#
+# Dependencies for installing
+#
+
+install: install-recursive install.shlib install.jlib install.wlib install.bin
+
+uninstall: uninstall-recursive uninstall.bin uninstall.shlib uninstall.jlib uninstall.wlib
+
+install.bin: $(BIN)
+	@if [ $(BIN) ]; then \
+	$(mkinclude)/mkinstalldirs $(bindir); \
+	$(INSTALL_PROGRAM) $(BIN) $(bindir)/$(BIN); \
+	fi
+
+install.shlib: $(SHLIB)
+	@if [ $(SHLIB) ]; then \
+	$(mkinclude)/mkinstalldirs $(libdir); \
+	$(INSTALL_PROGRAM) $(SHLIB) $(libdir)/$(SHLIB); \
+	fi
+
+install.jlib: $(JLIB)
+	@if [ $(JLIB) ]; then \
+	$(mkinclude)/mkinstalldirs $(libdir); \
+	$(INSTALL_PROGRAM) $(JLIB) $(libdir)/$(JLIB); \
+	fi
+
+install.wlib: $(WLIB)
+	@if [ $(WLIB) ]; then \
+	$(mkinclude)/mkinstalldirs $(libdir); \
+	$(INSTALL_PROGRAM) $(WLIB) $(libdir)/$(WLIB); \
+	fi
+
+uninstall.bin:
+	@if [ $(BIN) ]; then \
+	$(RM) $(bindir)/$(BIN); \
+	fi
+
+uninstall.shlib:
+	@if [ $(SHLIB) ]; then \
+	$(RM) $(libdir)/$(SHLIB); \
+	fi
+
+uninstall.jlib:
+	@if [ $(JLIB) ]; then \
+	$(RM) $(libdir)/$(JLIB); \
+	fi
+
+uninstall.wlib:
+	@if [ $(WLIB) ]; then \
+	$(RM) $(libdir)/$(WLIB); \
+	fi
+
+#
+# Dependencies for cleanup
+#
+
+clean: clean-recursive remove-directory
+	$(RM) *.o $(BIN) $(SHLIB) *~ *.bak core $(ANSI2KNR) \
+		*._o *._c *.class $(JLIB) $(WLIB) *_wrapper.I *_wrapper.h *_wrapper.cxx
+
+remove-directory:
+	if [ -n "$(RMDIRS)" ]; then rm -rf $(RMDIRS); fi
+
+#
+# Dependencies for maintenance
+#
+
+all-recursive clean-recursive \
+install-recursive uninstall-recursive: 
+	@target=`echo $@ | sed s/-recursive//`; \
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	echo "Making $$target in $$subdir"; \
+	cd $$subdir; \
+	$(MAKE) $(AM_MAKEFLAGS) $$target; \
+	cd ..; \
+	done;
+

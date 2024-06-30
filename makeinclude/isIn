@@ -1,0 +1,14 @@
+filePath=$1
+
+dirPath=$2
+
+if [ -n "$dirPath" ]; then
+        if [ -r $PWD/$filePath ]; then filePath=$PWD/$filePath; fi
+        cd $dirPath;
+fi
+
+javaFiles=`ls *.java`
+for file in $javaFiles; do
+        fileName=`echo $file| sed s/\.java//`;
+        grep $fileName $filePath;
+done

@@ -1,0 +1,23 @@
+	currSubpath=$1
+	srcDir=$2
+	jarFile=$3
+	fileList=`ls`
+	for name in $fileList; do
+		if [ $name -a -d $name ]; then
+			cd $name
+			nextSubdir=$currSubpath/$name
+			$MAC/makeinclude/rmic_subdir $nextSubdir \
+							$srcDir $jarFile
+			cd ..
+		fi
+	done
+	classList=`ls *.class 2>/dev/null`
+	for file in $classList; do
+		if [ $jarFile -nt $file ]; then continue; fi
+
+		fileName=`echo $file | sed "s/\.class//"`
+		javaClass=`echo "$currSubpath/$fileName"| sed "s/\//\./g"`
+		if [ -a "$srcDir/$currSubpath/$fileName.rmi" ]; then
+			echo "$javaClass" >>/tmp/rmi.file.list
+		fi
+	done
